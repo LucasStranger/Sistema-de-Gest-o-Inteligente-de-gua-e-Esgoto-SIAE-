@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import numpy as np
 import random
 import time
 import threading
@@ -25,7 +26,7 @@ class Sensor:
 class WaterManagementSystem:
     def __init__(self, sensors):
         self.sensors = sensors
-        self.running = True  # Variável para controlar o monitoramento
+        self.running = True
 
     def monitor_sensors(self):
         while self.running:
@@ -51,59 +52,70 @@ def start_monitoring(system):
     monitoring_thread = threading.Thread(target=system.monitor_sensors)
     monitoring_thread.start()
 
-# Função de animação
-def animate(i, sensor, x_data, y_data, start_time):
+# Função de animação para o gráfico de Linha
+def animate_line(i, sensor, x_data, y_data, start_time, ax):
     value = sensor.read_data()
     y_data.append(value)
     x_data.append(time.time() - start_time)
 
     ax.clear()
-    
-    # Definindo a cor com base em HSV
+
     hue = (i % 100) / 100.0
     rgb_color = colorsys.hsv_to_rgb(hue, 1, 1)
     
     ax.plot(x_data, y_data, color=rgb_color)
-    ax.set_title(f"Monitoramento do sensor {sensor.sensor_id} ({sensor.sensor_type})")
+    ax.set_title(f"Gráfico de Linha: Sensor {sensor.sensor_id} ({sensor.sensor_type})")
     ax.set_xlabel("Tempo (s)")
     ax.set_ylabel("Valor do Sensor")
 
-# Configuração para plotar o gráfico com animação
-fig, ax = plt.subplots()
+# Função de animação para o gráfico de Dispersão
+def animate_scatter(i, sensor, x_data, y_data, start_time, ax):
+    value = sensor.read_data()
+    y_data.append(value)
+    x_data.append(time.time() - start_time)
+
+    ax.clear()
+
+    hue = (i % 100) / 100.0
+    rgb_color = colorsys.hsv_to_rgb(hue, 1, 1)
+    
+    ax.scatter(x_data, y_data, color=rgb_color)
+    
+    # Adicionando regressão linear
+    if len(x_data) > 1:  # Verifica se há dados suficientes para regressão
+        # Calcular os coeficientes da regressão linear
+        coefficients = np.polyfit(x_data, y_data, 1)
+        polynomial = np.poly1d(coefficients)
+        regression_line = polynomial(x_data)
+
+        ax.plot(x_data, regression_line, color='red', linestyle='--', label='Regressão Linear')
+
+    ax.set_title(f"Gráfico de Dispersão: Sensor {sensor.sensor_id} ({sensor.sensor_type})")
+    ax.set_xlabel("Tempo (s)")
+    ax.set_ylabel("Valor do Sensor")
+    ax.legend()
+
+# Inicializando o sensor 4
+sensor_example = Sensor(sensor_id=4, sensor_type='flow')
+
+# Dados para gráficos
 x_data, y_data = [], []
 start_time = time.time()
 
-# Exemplo de sensor de fluxo
-sensor_example = Sensor(sensor_id=4, sensor_type='flow')
+# Configuração das figuras e subplots para os gráficos de Linha e Dispersão
+fig1, ax1 = plt.subplots()  # Gráfico de Linha
+fig2, ax2 = plt.subplots()  # Gráfico de Dispersão
 
-# Configura a animação
-ani = animation.FuncAnimation(
-    fig, 
-    animate, 
-    fargs=(sensor_example, x_data, y_data, start_time), 
-    interval=1000
-)
+# Configurando as animações
+ani_line = animation.FuncAnimation(fig1, animate_line, fargs=(sensor_example, x_data, y_data, start_time, ax1), interval=1000)
+ani_scatter = animation.FuncAnimation(fig2, animate_scatter, fargs=(sensor_example, x_data, y_data, start_time, ax2), interval=1000)
 
-# Criando sensores adicionais
-sensor1 = Sensor(sensor_id=1, sensor_type='pressure')
-sensor2 = Sensor(sensor_id=2, sensor_type='flow')
-sensor3 = Sensor(sensor_id=3, sensor_type='leakage')
-
-# Lista de sensores
-sensors = [sensor1, sensor2, sensor3]
+# Criando sistema de monitoramento com sensor 4
+sensors = [sensor_example]
 water_management_system = WaterManagementSystem(sensors)
 
-# Iniciando o monitoramento dos sensores
+# Iniciar o monitoramento em paralelo
 start_monitoring(water_management_system)
 
-# Definindo um tempo limite para o monitoramento
-def stop_system_after_delay(delay):
-    time.sleep(delay)
-    water_management_system.stop_monitoring()
-    print("Monitoramento encerrado.")
-
-# Iniciar o timer para encerrar o monitoramento após 20 segundos
-threading.Thread(target=stop_system_after_delay, args=(20,)).start()
-
-# Exibe o gráfico
+# Exibe todos os gráficos
 plt.show()

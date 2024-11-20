@@ -16,14 +16,14 @@ class Sensor:
 
     def read_data(self):
         if self.sensor_type == 'pressure':
-            self.value = random.uniform(400, 800)  # Aumentando a pressão para entre 1.0 e 3.0 bar
+            self.value = random.uniform(400, 800)  # Pressão entre 400 e 800 kPa
         elif self.sensor_type == 'flow':
-            self.value = random.uniform(250, 290)  # Fluxo de água em litros/minuto
+            self.value = random.uniform(250, 290)  # Fluxo entre 250 e 290 L/min
         elif self.sensor_type == 'leakage':
-            self.value = random.choices([200, 150], weights=[0.8, 0.2])[0]  # Aumentando a chance de vazamento
+            self.value = random.choices([200, 150], weights=[0.8, 0.2])[0]  # Vazamento com peso
         return self.value
 
-# Classe para gerenciar o sistema de monitoramento de água
+# Classe para gerenciar o sistema de monitoramento
 class WaterManagementSystem:
     def __init__(self, sensors):
         self.sensors = sensors
@@ -32,33 +32,17 @@ class WaterManagementSystem:
     def monitor_sensors(self):
         while self.running:
             for sensor in self.sensors:
-                sensor_value = sensor.read_data()
-                if sensor.sensor_type == 'leakage' and sensor_value == 1:
-                    print(f"ALERTA: Vazamento detectado pelo sensor {sensor.sensor_id}!")
-                    self.handle_leakage(sensor.sensor_id)
-                elif sensor.sensor_type == 'pressure' and (sensor_value < 0.7 or sensor_value > 1.3):
-                    print(f"ALERTA: Pressão fora do normal no sensor {sensor.sensor_id} - valor: {sensor_value:.2f} bar")
-                elif sensor.sensor_type == 'flow' and sensor_value < 80:
-                    print(f"ALERTA: Fluxo de água baixo detectado no sensor {sensor.sensor_id} - valor: {sensor_value:.2f} L/min")
+                sensor.read_data()
             time.sleep(2)
-
-    def handle_leakage(self, sensor_id):
-        print(f"Executando ação: Fechando válvula do sensor {sensor_id} para evitar desperdício de água.")
 
     def stop_monitoring(self):
         self.running = False
 
-# Função para iniciar o monitoramento em uma nova thread
-def start_monitoring(system):
-    monitoring_thread = threading.Thread(target=system.monitor_sensors)
-    monitoring_thread.start()
-
-# Função de animação para o gráfico de Linha
+# Função de animação para gráfico de linha
 def animate_line(i, sensor, x_data, y_data, start_time, ax):
     value = sensor.read_data()
     y_data.append(value)
     x_data.append(time.time() - start_time)
-
     ax.clear()
 
     hue = (i % 100) / 100.0
@@ -70,12 +54,11 @@ def animate_line(i, sensor, x_data, y_data, start_time, ax):
     ax.set_ylabel("Valor do Sensor", fontsize=10)
     ax.grid(True)
 
-# Função de animação para o gráfico de Dispersão
+# Função de animação para gráfico de dispersão
 def animate_scatter(i, sensor, x_data, y_data, start_time, ax):
     value = sensor.read_data()
     y_data.append(value)
     x_data.append(time.time() - start_time)
-
     ax.clear()
 
     hue = (i % 100) / 100.0
@@ -87,7 +70,6 @@ def animate_scatter(i, sensor, x_data, y_data, start_time, ax):
         coefficients = np.polyfit(x_data, y_data, 1)
         polynomial = np.poly1d(coefficients)
         regression_line = polynomial(x_data)
-
         ax.plot(x_data, regression_line, color='red', linestyle='--', label='Regressão Linear')
 
     ax.set_title(f"Gráfico de Dispersão: Sensor {sensor.sensor_id} ({sensor.sensor_type})", fontsize=12)
@@ -96,30 +78,38 @@ def animate_scatter(i, sensor, x_data, y_data, start_time, ax):
     ax.legend()
     ax.grid(True)
 
-# Função de animação para o gráfico de Pizza RGB
+# Função de animação para gráfico de pizza
 def animate_pie(i, sensors, ax):
     ax.clear()
     values = [sensor.read_data() for sensor in sensors]
 
-    # Cores RGB para o gráfico de pizza, mudando com o tempo
     colors = [colorsys.hsv_to_rgb((i + j) / len(sensors), 1, 0.8) for j in range(len(sensors))]
-    
     ax.pie(values, labels=[f'Sensor {sensor.sensor_id} ({sensor.sensor_type})' for sensor in sensors], 
            colors=colors, autopct='%1.1f%%', startangle=90)
-    
     ax.set_title("Gráfico de Pizza: Leituras dos Sensores", fontsize=12)
     ax.axis('equal')
 
-# Função de animação para o gráfico de Densidade
+# Função de animação para gráfico de densidade
 def animate_density(i, sensors, ax):
     ax.clear()
     values = [sensor.read_data() for sensor in sensors]
-    
-    # Plotando gráfico de densidade
     sns.kdeplot(values, ax=ax, fill=True, color='skyblue')
     ax.set_title("Gráfico de Densidade", fontsize=12)
     ax.set_xlabel("Valor do Sensor", fontsize=10)
     ax.set_ylabel("Densidade", fontsize=10)
+    ax.grid(True)
+
+# Função de animação para gráfico de barras (Qualidade da Água)
+def animate_bar(i, sensors, ax):
+    ax.clear()
+    values = [sensor.read_data() for sensor in sensors]
+    labels = [f'Sensor {sensor.sensor_id} ({sensor.sensor_type})' for sensor in sensors]
+    colors = ['skyblue', 'green', 'orange']
+    
+    ax.bar(labels, values, color=colors)
+    ax.set_title("Gráfico de Barras: Qualidade da Água", fontsize=12)
+    ax.set_xlabel("Tipo de Sensor", fontsize=10)
+    ax.set_ylabel("Valor", fontsize=10)
     ax.grid(True)
 
 # Inicializando os sensores
@@ -131,23 +121,19 @@ sensors = [Sensor(sensor_id=1, sensor_type='pressure'),
 x_data, y_data = [], []
 start_time = time.time()
 
-# Configuração das figuras e subplots para os gráficos de Linha, Dispersão, Pizza e Densidade
+# Configuração das figuras e subplots para gráficos
 fig1, ax1 = plt.subplots()  # Gráfico de Linha
 fig2, ax2 = plt.subplots()  # Gráfico de Dispersão
 fig3, ax3 = plt.subplots()  # Gráfico de Pizza
 fig4, ax4 = plt.subplots()  # Gráfico de Densidade
+fig5, ax5 = plt.subplots()  # Gráfico de Barras
 
 # Configurando as animações
 ani_line = animation.FuncAnimation(fig1, animate_line, fargs=(sensors[0], x_data, y_data, start_time, ax1), interval=1000)
 ani_scatter = animation.FuncAnimation(fig2, animate_scatter, fargs=(sensors[0], x_data, y_data, start_time, ax2), interval=1000)
 ani_pie = animation.FuncAnimation(fig3, animate_pie, fargs=(sensors, ax3), interval=1000)
 ani_density = animation.FuncAnimation(fig4, animate_density, fargs=(sensors, ax4), interval=1000)
-
-# Criando sistema de monitoramento com sensores
-water_management_system = WaterManagementSystem(sensors)
-
-# Iniciar o monitoramento em paralelo
-start_monitoring(water_management_system)
+ani_bar = animation.FuncAnimation(fig5, animate_bar, fargs=(sensors, ax5), interval=1000)
 
 # Exibe todos os gráficos
 plt.show()
